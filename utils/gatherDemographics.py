@@ -35,68 +35,12 @@ def get_demo():
     session_label = session.label
     subject_label = session.subject.label
 
-    #  -----------------  Get the hd-bet output  -----------------  #
-
-    # Any analyses on this session will be stored as a list:
-    analyses = session.analyses
-    # print(analyses)
-
-    # If there are no analyses containers, we know that this gear was not run
-    if len(analyses) == 0:
-        run = 'False'
-        status = 'NA'
-        print('No analysis containers')
-    else:
-
-        matches = [asys for asys in analyses if asys.gear_info.get('name') == gear]
-        # print(matches)
-        # If there are no matches, the gear didn't run
-        if len(matches) == 0:
-            run = 'False'
-            status = 'NA'
-        # If there is one match, that's our target
-        elif len(matches) == 1:
-            run = 'True'
-            status = matches[0].job.get('state')
-            # print(status)
-            
-            for file in matches[0].files:                
-                if file.name == 'isotropicReconstruction_corrected_sbet_mask.nii.gz':
-                    brain_mask = file
-                    print("Found ", file.name)
-
-                    download_dir = ('/flywheel/v0/input/input/')
-                    if not os.path.exists(download_dir):
-                        os.mkdir(download_dir)
-                    download_path = download_dir + '/' + file.name
-                    file.download(download_path)
-
-        # If there are more than one matches (due to reruns), take the most recent run.
-        # This behavior may be modified to whatever suits your needs
-        else:
-            last_run_date = max([asys.created for asys in matches])
-            last_run_analysis = [asys for asys in matches if asys.created == last_run_date]
-
-            # There should only be one exact match
-            last_run_analysis = last_run_analysis[0]
-
-            run = 'True'
-            status = last_run_analysis.job.get('state')
-
-            for file in last_run_analysis.files:
-                # print(file)                
-                if file.name == 'isotropicReconstruction_corrected_sbet_mask.nii.gz':
-                    brain_mask = file
-                    print("Found ", file.name)
-
-                    download_dir = ('/flywheel/v0/input/input/')
-                    if not os.path.exists(download_dir):
-                        os.mkdir(download_dir)
-                    download_path = download_dir + '/' + file.name
-                    file.download(download_path)
-
     # -------------------  Get the subject age & matching template  -------------------  #
 
+    # Preallocate variables in case of missing DOB
+    age = None
+    PatientSex = None
+    # NOTE: Assumes Hyperfine acquisition
     # get the T2w axi dicom acquisition from the session
     # Should contain the DOB in the dicom header
     # Some projects may have DOB removed, but may have age at scan in the subject container

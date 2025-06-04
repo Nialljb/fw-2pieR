@@ -47,7 +47,7 @@ mytx = ants.registration(fixed = ants.image_read(args.anat_t1w),
 warped_outline = ants.apply_transforms(fixed=ants.image_read(args.anat_t1w),
                                     moving=ants.image_read(outline),
                                     transformlist=mytx['fwdtransforms'],
-                                    interpolator = 'genericLabel')
+                                    interpolator = 'linear') ### Change to 'linear' if you want a continuous image
 
 warped_outline.to_file(os.join.path(args.out_dir, "head_contour.nii.gz"))
 

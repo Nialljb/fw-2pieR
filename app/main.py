@@ -3,6 +3,8 @@ import nibabel as nib
 import pandas as pd
 import ants
 
+# https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/public/
+
 out_dir = '/flywheel/v0/output'
 
 def calculateHeadCircumference(input, subject_label, session_label, patientSex, age):
@@ -16,7 +18,11 @@ def calculateHeadCircumference(input, subject_label, session_label, patientSex, 
     template = ""
     outline  = ""
 
-    if (age <= 720):
+    if age is None:
+        print("WARNING!!! Age is not available. Using the under 2 template.")
+        template = under2_template
+        outline  = under2_outline
+    elif (age <= 720):
         template = under2_template
         outline  = under2_outline
     else:
