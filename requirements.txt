@@ -46,3 +46,4 @@ tifffile==2024.2.12
 tzdata==2024.1
 urllib3==2.2.1
 webcolors==1.13
+scikit-image

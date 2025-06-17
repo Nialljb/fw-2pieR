@@ -18,7 +18,6 @@ def get_demo():
     # Read API key in config file
     api_key = (config['inputs']['api-key']['key'])
     fw = flywheel.Client(api_key=api_key)
-    gear = 'sbet'
     
     # Get the input file id
     input_file_id = (config['inputs']['input']['hierarchy']['id'])
@@ -35,63 +34,69 @@ def get_demo():
     session_label = session.label
     subject_label = session.subject.label
 
+    age = session.info.get('age_in_months')
+    if age is not None:
+        print("Age in months from session info: ", age)
+    else:
+        print("No age in months in session info, checking for age in years...")
+        age = None
+
+    PatientSex = session.info.get('PatientSex')
+    if PatientSex is not None:
+        print("PatientSex from session info: ", PatientSex)
+    else:
+        print("No PatientSex in session info")
+        PatientSex = "NA"
+
     # -------------------  Get the subject age & matching template  -------------------  #
 
-    # Preallocate variables in case of missing DOB
-    age = None
-    PatientSex = None
     # NOTE: Assumes Hyperfine acquisition
     # get the T2w axi dicom acquisition from the session
     # Should contain the DOB in the dicom header
     # Some projects may have DOB removed, but may have age at scan in the subject container
 
-    for acq in session_container.acquisitions.iter():
-        # print(acq.label)
-        acq = acq.reload()
-        if 'T2' in acq.label and 'AXI' in acq.label and 'Segmentation' not in acq.label: 
-            for file_obj in acq.files: # get the files in the acquisition
-                # Screen file object information & download the desired file
-                if file_obj['type'] == 'dicom':
+    # for acq in session_container.acquisitions.iter():
+    #     # print(acq.label)
+    #     acq = acq.reload()
+    #     if 'T2' in acq.label and 'AXI' in acq.label and 'Segmentation' not in acq.label: 
+    #         for file_obj in acq.files: # get the files in the acquisition
+    #             # Screen file object information & download the desired file
+    #             if file_obj['type'] == 'dicom':
                     
-                    dicom_header = fw._fw.get_acquisition_file_info(acq.id, file_obj.name)
+    #                 dicom_header = fw._fw.get_acquisition_file_info(acq.id, file_obj.name)
 
-                    if 'PatientSex' in dicom_header.info:
-                        PatientSex = dicom_header.info["PatientSex"]
-                    else:
-                        PatientSex = "NA"
+    #                 if 'PatientSex' in dicom_header.info:
+    #                     PatientSex = dicom_header.info["PatientSex"]
+    #                 else:
+    #                     PatientSex = "NA"
                 
-                    # print("PatientSex: ", PatientSex)
+    #                 # print("PatientSex: ", PatientSex)
 
-                    if 'PatientBirthDate' in dicom_header.info:
-                        # Get dates from dicom header
-                        dob = dicom_header.info['PatientBirthDate']
-                        seriesDate = dicom_header.info['SeriesDate']
-                        # Calculate age at scan
-                        age = (datetime.strptime(seriesDate, '%Y%m%d')) - (datetime.strptime(dob, '%Y%m%d'))
-                        age = age.days
-                    elif session.age != None: 
-                        # 
-                        print("Checking session infomation label...")
-                        # print("session.age: ", session.age) 
-                        age = int(session.age / 365 / 24 / 60 / 60) # This is in seconds
-                    elif 'PatientAge' in dicom_header.info:
-                        print("No DOB in dicom header or age in session info! Trying PatientAge from dicom...")
-                        age = dicom_header.info['PatientAge']
-                        # Need to drop the 'D' from the age and convert to int
-                        age = re.sub('\D', '', age)
-                        age = int(age)
-                    else:
-                        print("No age at scan in session info label! Ask PI...")
-                        age = 0
+    #                 if 'PatientBirthDate' in dicom_header.info:
+    #                     # Get dates from dicom header
+    #                     dob = dicom_header.info['PatientBirthDate']
+    #                     seriesDate = dicom_header.info['SeriesDate']
+    #                     # Calculate age at scan
+    #                     age = (datetime.strptime(seriesDate, '%Y%m%d')) - (datetime.strptime(dob, '%Y%m%d'))
+    #                     age = age.days
+    #                 elif session.age != None: 
+    #                     # 
+    #                     print("Checking session infomation label...")
+    #                     # print("session.age: ", session.age) 
+    #                     age = int(session.age / 365 / 24 / 60 / 60) # This is in seconds
+    #                 elif 'PatientAge' in dicom_header.info:
+    #                     print("No DOB in dicom header or age in session info! Trying PatientAge from dicom...")
+    #                     age = dicom_header.info['PatientAge']
+    #                     # Need to drop the 'D' from the age and convert to int
+    #                     age = re.sub('\D', '', age)
+    #                     age = int(age)
+    #                 else:
+    #                     print("No age at scan in session info label! Ask PI...")
+    #                     age = 0
 
-                    if age == 0:
-                        print("No age at scan - skipping")
-                        exit(1)
-                    # Make sure age is positive
-                    elif age < 0:
-                        age = age * -1
-                    # print("age: ", age)
-        
-
+    #                 if age == 0:
+    #                     print("No age at scan - skipping")
+    #                     exit(1)
+   
     print("Demographics: ", subject_label, session_label, age, PatientSex)
     return subject_label, session_label, age, PatientSex

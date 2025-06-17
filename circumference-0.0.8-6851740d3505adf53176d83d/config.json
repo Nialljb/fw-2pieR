@@ -1,0 +1,40 @@
+{
+    "config": {},
+    "inputs": {
+        "input": {
+            "hierarchy": {
+                "id": "68516547798e0cc2b5de6543",
+                "type": "analysis"
+            },
+            "object": {
+                "type": "nifti",
+                "mimetype": "application/octet-stream",
+                "modality": null,
+                "classification": {},
+                "tags": [],
+                "info": {},
+                "size": 3533038,
+                "zip_member_count": null,
+                "version": 1,
+                "file_id": "6851740d3505adf53176d837",
+                "origin": {
+                    "type": "job",
+                    "id": "68516547798e0cc2b5de6545"
+                }
+            },
+            "location": {
+                "path": "/flywheel/v0/input/input/sub-QE_2319__12M_ses-Type-visit-14_rec-mrr-axireg_fast.nii.gz",
+                "name": "sub-QE_2319__12M_ses-Type-visit-14_rec-mrr-axireg_fast.nii.gz"
+            },
+            "base": "file"
+        },
+        "api-key": {
+            "base": "api-key",
+            "key": "bmgf.flywheel.io:djEeziF2dVPtXk_Xj_jrb0U2bP8ryhAOXlFY9rsQn0-sJMDGrml36VFvQ"
+        }
+    },
+    "destination": {
+        "id": "6851740d3505adf53176d83b",
+        "type": "analysis"
+    }
+}
