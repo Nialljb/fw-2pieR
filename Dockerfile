@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y software-proper
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN pip install antspyx
+RUN pip install antspyx scikit-image
 
 # Configure entrypoint
 RUN bash -c 'chmod +rx $FLYWHEEL/run.py' && \
