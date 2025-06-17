@@ -70,9 +70,7 @@ _No additional configuration parameters are required._
 No metadata currently created by this gear
 
 ### Pre-requisites
-
-- A 3D structural image (T1-weighted), already bias-corrected and skull-stripped
-- Isotropic resolution is assumed (ideally 1x1x1 mm)
+- Isotropic reconstruction
 
 #### Prerequisite Gear Runs
 
@@ -102,24 +100,5 @@ This gear is run at the `Analysis` level using a single structural input. It reg
 #### File Specifications
 
 * Input NIfTI file must be:
-  - 3D structural image (T1-weighted)
-  - Bias-corrected
-  - Skull-stripped
-  - Isotropic resolution
-  - `.nii.gz` format
+  - 3D structural image (T2-weighted isotropic reconstruction)
 
-### Workflow
-
-```mermaid
-  graph LR;
-    A[T1w (preprocessed)]:::input --> REG;
-    REG((ANTs Registration)):::gear --> HC;
-    HC((Head Circumference Estimation)):::gear --> CSV;
-    HC --> IMG;
-
-    classDef input fill:#7a9,color:#fff
-    classDef gear fill:#659,color:#fff
-    classDef output fill:#57d,color:#fff
-
-    CSV[HC CSV Output]:::output
-    IMG[Contour QC Plot]:::output
