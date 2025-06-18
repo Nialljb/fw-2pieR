@@ -1,65 +1,139 @@
 import os
 import nibabel as nib
+import numpy as np
+import matplotlib.pyplot as plt
+from skimage import measure
+from scipy.fft import fft, ifft
 import pandas as pd
+from nibabel.affines import apply_affine
 import ants
-
-out_dir = '/flywheel/v0/output'
-
+ 
 def calculateHeadCircumference(input, subject_label, session_label, patientSex, age):
-    #Define some executables and the template paths
-    under2_template = '/flywheel/v0/app/templates/under2.nii.gz'
-    under2_outline  = '/flywheel/v0/app/templates/under2Outline.nii.gz'
+    """
+    Calculate head circumference from NIfTI files in a specified directory.
+    This function processes NIfTI files, registers them to a template, extracts contours,
+    and estimates head circumference in centimeters.
+    Returns:
+        int: Exit code (0 for success).
+        str: Path to the output CSV file with head circumference estimates.
+    Raises:
+        Exception: If any error occurs during processing.
+    """
 
-    over2_template  = '/flywheel/v0/app/templates/over2.nii.gz'
-    over2_outline   = '/flywheel/v0/app/templates/over2Outline.nii.gz'
-                                
-    template = ""
-    outline  = ""
+    # # === Paths ===
+    # input_dir = 'native_files'
+    work_dir = '/flywheel/v0/work'
+    out_dir = '/flywheel/v0/output'
 
-    if (age <= 720):
-        template = under2_template
-        outline  = under2_outline
-    else:
-        template = over2_template
-        outline  = over2_outline
+    os.makedirs(work_dir, exist_ok=True)
+    
+    # === Use fixed template and slice index (12M) ===
+    template_path = '/flywheel/v0/app/templates/template_12M.nii.gz'
+    z_index = 44
+    
+    all_results = []
+        
+    try:
+        template_img = nib.load(template_path)
+        data = template_img.get_fdata()
+        affine = template_img.affine
 
-    print("Using template: ", template)
-    print("Using outline: ", outline)
-    print("Input image: ", input)
+        binary_slice = data[:, :, z_index]
+        contours = measure.find_contours(binary_slice, level=0.5)
+        if not contours:
+            raise ValueError(f"No contours found in slice {z_index} of template")
 
-    #Now register the template to the input image
-    mytx = ants.registration(fixed = ants.image_read(input),
-                            moving = ants.image_read(template),
-                            type_of_transform = 'SyN')
-                            
-    warped_outline = ants.apply_transforms(fixed=ants.image_read(input),
-                                        moving=ants.image_read(outline),
-                                        transformlist=mytx['fwdtransforms'],
-                                        interpolator = 'genericLabel')
+        contour = max(contours, key=len)
+        y, x = contour[:, 0], contour[:, 1]
+        z = x + 1j * y
+        Z = fft(z)
+        N = 20
+        Z_trunc = np.zeros_like(Z)
+        Z_trunc[:N] = Z[:N]
+        Z_trunc[-N+1:] = Z[-N+1:]
+        z_smooth = ifft(Z_trunc)
+        x_smooth, y_smooth = z_smooth.real, z_smooth.imag
+        voxel_coords = np.column_stack((x_smooth, y_smooth, np.full_like(x_smooth, z_index)))
+        mm_coords = apply_affine(affine, voxel_coords)
+        mm_df = pd.DataFrame(mm_coords, columns=['x', 'y', 'z'])
 
-    warped_outline.to_file(os.path.join(out_dir, "head_contour.nii.gz"))
+        native = ants.image_read(input)
+        template = ants.image_read(template_path)
 
-    output_contour = os.path.join(out_dir, "head_contour.nii.gz")
-    #Now calculate the head circumference by simply summing the values
-    contour_img  = nib.load(output_contour)
-    contour_data = contour_img.get_fdata().flatten()
-    voxel_size   = contour_img.header.get_zooms()[0]
+        outprefix = os.path.join(os.path.basename(input).replace(".nii.gz", "_"))
+        reg = ants.registration(fixed=template, moving=native, type_of_transform='SyN', outprefix=outprefix)
 
-    hc = 0.00
+        reg_native = reg['warpedmovout']
+        output_fname_native = os.path.basename(input).replace('.nii.gz', '_registered.nii.gz')
+        reg_native.to_filename(os.path.join(work_dir, output_fname_native))
 
-    for vox in contour_data: #.shape[0]:
-        if vox > 0.00:
-            hc += (vox*voxel_size)
-            
-    hc_corrected = (hc + 910.69)/2.6458 #Correction based on previous modeling
-   
+        template_in_native = ants.apply_transforms(
+            fixed=native, moving=template, transformlist=reg['invtransforms']
+        )
+        output_fname_template = os.path.basename(input).replace('.nii.gz', '_template_to_native.nii.gz')
+        template_in_native.to_filename(os.path.join(work_dir, output_fname_template))
 
-    # hc, hc_corrected
+        transformed_df = ants.apply_transforms_to_points(
+            dim=3, points=mm_df, transformlist=reg['fwdtransforms']
+        )
 
-    # Create DataFrame  
-    data = [{'subject': subject_label, 'session': session_label, 'age': age, 'sex': patientSex, 'hc': hc, 'hc_corrected': hc_corrected, 'hc_units': 'mm'}]  
-    df = pd.DataFrame(data)
-    df.to_csv(index=False, path_or_buf = out_dir + '/' + subject_label + '-hc.csv')
+        coords_native = transformed_df[['x', 'y']].to_numpy()
+        coords_native_closed = np.vstack([coords_native, coords_native[0]])
+        dists_native = np.sqrt(np.sum(np.diff(coords_native_closed, axis=0) ** 2, axis=1))
+        circumference_mm_native = dists_native.sum()
+        circumference_cm_native = round(circumference_mm_native / 10.0, 2)
+
+        # === plotting ===
+        # fig, ax = plt.subplots(figsize=(6, 6))
+        # ax.imshow(binary_slice, cmap='gray', origin='lower')
+        # ax.plot(contour[:, 1], contour[:, 0], label='Original', color='red', alpha=0.6)
+        # ax.plot(x_smooth, y_smooth, label='Smoothed (FFT)', color='cyan')
+        # ax.set_title(f"Z-index: {z_index} | Circumference: {circumference_cm_native} cm")
+        # ax.legend()
+        # ax.plot([10], [10], 'go')  # Should appear bottom-left if orientation is correct
+        # plt.axis('off')
+        # plt.savefig(os.path.join(work_dir, 'circumference_plot.png'), bbox_inches='tight')
+
+
+        # Warp native into template space (so everything aligns)
+        native_in_template = ants.apply_transforms(
+            fixed=template,
+            moving=native,
+            transformlist=reg['fwdtransforms']
+        )
+
+        # Save or get the array
+        native_resampled = native_in_template.numpy()
+        slice_index = z_index  # same slice as used for contour extraction
+        resampled_slice = native_resampled[:, :, slice_index]
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.imshow(resampled_slice, cmap='gray', origin='lower')
+        ax.plot(x_smooth, y_smooth, label='Smoothed Contour (FFT)', color='cyan')
+        ax.set_title(f"Z-index: {z_index} | Circumference: {circumference_cm_native} cm")
+        ax.legend()
+        plt.axis('off')
+        plt.savefig(os.path.join(out_dir, 'contour_on_template_space_native.png'), bbox_inches='tight')
+
+        # === Collect results ===
+        all_results.append({
+            'subject': subject_label,
+            'session': session_label,
+            'age': age,
+            'sex': patientSex,
+            'mri_estimated_hc_cm': circumference_cm_native,
+        })
+
+        print(f"✅ Estimated HC: {circumference_cm_native:.2f} cm")
+
+    except Exception as e:
+        print(f"❌ Failed to process {input}: {e}")
+    
+    # === Save results ===
+    hc_df = pd.DataFrame(all_results)
+    hc_df = hc_df[hc_df['mri_estimated_hc_cm'] > 0]
+    hc_df.to_csv(index=False, path_or_buf = out_dir + '/' + subject_label + '-mri_estimated_hc_cm.csv')
+    print("\n✅ Saved head circumference estimates to 'head_circumference_estimates_only.csv'")
 
     # Return 0 if successful
     e_code = 0

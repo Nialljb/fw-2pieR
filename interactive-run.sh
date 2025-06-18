@@ -1,8 +1,8 @@
 #!/usr/bin/env bash 
 
 GEAR=fw-2pieR
-IMAGE=flywheel/circumference:0.0.1
-LOG=circumference-0.0.1-660d46e40aa9007ce3580e7d
+IMAGE=flywheel/circumference:0.0.8
+LOG=circumference-0.0.8-6851740d3505adf53176d83d
 
 # Command:
 docker run -it --rm --entrypoint bash\

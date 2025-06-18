@@ -27,14 +27,14 @@
     },
     "gear-builder": {
       "category": "analysis",
-      "image": "flywheel/circumference:0.0.3"
+      "image": "flywheel/circumference:0.0.10"
     },
     "kcl-app-binary": "app/main.py",
     "kcl-app-modalities": [
       "anat"
     ]
   },
-  "description": "This gear takes the isotropic hyperfine reconstructions that have and estimates the head circumference of the subject using ANTs",
+  "description": "This gear estimates the head circumference of the subject using ANTs",
   "environment": {
     "CONDA_DIR": "/opt/conda",
     "FLYWHEEL": "/flywheel/v0",
@@ -68,5 +68,5 @@
   "name": "circumference",
   "source": "",
   "url": "",
-  "version": "0.0.3"
+  "version": "0.0.10"
 }
